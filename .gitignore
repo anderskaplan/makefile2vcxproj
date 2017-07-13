@@ -1,0 +1,10 @@
+~*
+*.suo
+*.user
+*.old
+[Dd]ebug
+[Rr]elease
+obj
+packages
+
+test1/
