@@ -85,21 +85,7 @@ namespace make2vc
 
                 while (line != null)
                 {
-                    var match = ruleRegex.Match(line);
-                    if (match.Success)
-                    {
-                        yield return new Rule
-                        {
-                            FilePath = makefilePath,
-                            LineNumber = lineNumber,
-                            Targets = match.Groups[1].Value,
-                            Prerequisites = match.Groups[2].Value,
-                            Recipe = ParseRecipe(nextLine).ToArray() // calls nextLine at least once
-                        };
-                        continue;
-                    }
-
-                    match = variableDefinitionRegex.Match(line);
+                    var match = variableDefinitionRegex.Match(line);
                     if (match.Success)
                     {
                         yield return new VariableDefinition
@@ -110,6 +96,20 @@ namespace make2vc
                             Value = match.Groups[2].Value,
                         };
                         nextLine();
+                        continue;
+                    }
+
+                    match = ruleRegex.Match(line);
+                    if (match.Success)
+                    {
+                        yield return new Rule
+                        {
+                            FilePath = makefilePath,
+                            LineNumber = lineNumber,
+                            Targets = match.Groups[1].Value,
+                            Prerequisites = match.Groups[2].Value,
+                            Recipe = ParseRecipe(nextLine).ToArray() // calls nextLine at least once
+                        };
                         continue;
                     }
 
