@@ -24,18 +24,17 @@ namespace make2vc.Test
                 .ToArray();
 
             Assert.That(content.Length, Is.EqualTo(2));
-            var first = content[0] as Target;
-            Assert.That(first.FilePath, Does.EndWith("simplest.mak"));
+            var first = content[0] as Rule;
+            Assert.That(first.FilePath, Does.EndWith("simplest.mk"));
             Assert.That(first.LineNumber, Is.EqualTo(2));
-            Assert.That(first.Name, Is.EqualTo("all"));
-            Assert.That(first.Dependencies.Length, Is.EqualTo(1));
-            Assert.That(first.Dependencies[0], Is.EqualTo("myprog.c"));
-            Assert.That(first.Commands.Length, Is.EqualTo(1));
-            Assert.That(first.Commands[0], Is.EqualTo("gcc -g -Wall -o myprog myprog.c"));
+            Assert.That(first.Targets, Is.EqualTo("all"));
+            Assert.That(first.Prerequisites, Is.EqualTo("myprog.c"));
+            Assert.That(first.Recipe.Length, Is.EqualTo(1));
+            Assert.That(first.Recipe[0], Is.EqualTo("gcc -g -Wall -o myprog myprog.c"));
 
-            var second = content[1] as Target;
+            var second = content[1] as Rule;
             Assert.That(second.LineNumber, Is.EqualTo(5));
-            Assert.That(second.Name, Is.EqualTo("clean"));
+            Assert.That(second.Targets, Is.EqualTo("clean"));
         }
     }
 }

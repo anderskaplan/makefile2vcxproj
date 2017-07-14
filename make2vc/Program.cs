@@ -16,10 +16,9 @@ namespace make2vc
             makefilePath = "../../../testdata/simplest.mk";
             //makefilePath = "../../../test1/Makefile";
 
-            var content = MakefileParser.Parse(makefilePath)
-                .ToArray();
+            MakefileProcessor.Process(makefilePath);
 
-            VcxprojWriter.Write("test.vcxproj");
+            //VcxprojWriter.Write("test.vcxproj");
         }
     }
 }
