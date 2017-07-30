@@ -31,7 +31,10 @@ b) getting a clean parse on the Makefile that spawned this project
 - bug: end-of-line backslashes can be escaped
 - feature: variables from the environment. "Variables in make can come from the environment in which make is run. Every environment variable that make sees when it starts up is transformed into a make variable with the same name and value." + "When make runs a recipe, variables defined in the makefile are placed into the environment of each shell."
 - feature: substitution references, https://www.gnu.org/software/make/manual/html_node/Substitution-Refs.html#Substitution-Refs
-- feature: nested variable expansion, e.g. dirs := $($(a1)$(df))
 
+A variable name may be any sequence of characters not containing ‘:’, ‘#’, ‘=’, or whitespace.
 
 Remaking makefiles: doesn't apply in this case, because this is not a make tool.
+
+# done (add to top)
+- feature: nested variable expansion, e.g. dirs := $($(a1)$(df))

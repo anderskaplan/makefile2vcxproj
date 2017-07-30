@@ -53,7 +53,7 @@ namespace make2vc
     {
         public static IEnumerable<BuildArtifact> Process(string makefilePath)
         {
-            var variables = new Dictionary<string, string>();
+            var variables = new Variables();
             var targets = new Dictionary<string, Rule>();
             string defaultGoal;
             ParseMakefile(makefilePath, variables, targets, out defaultGoal);
@@ -63,38 +63,25 @@ namespace make2vc
             var remainingTargets = new Stack<string>(new string[] { defaultGoal });
             while (remainingTargets.Count > 0)
             {
-                var currentTarget = remainingTargets.Pop();
-                if (!builtTargets.Add(currentTarget))
+                var target = remainingTargets.Pop();
+                if (!builtTargets.Add(target))
                 {
                     continue;
                 }
 
-                var fileType = IdentifyFileType(currentTarget);
+                var fileType = IdentifyFileType(target);
                 if (!FileTypeIsBuildArtifact(fileType))
                 {
                     continue;
                 }
 
-                Rule rule;
-                string[] dependencies;
-                if (targets.TryGetValue(currentTarget, out rule))
-                {
-                    dependencies = ExpandVariables(rule.Prerequisites, variables)
-                        .Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-                }
-                else if (File.Exists(MakePath(currentTarget, makefilePath)))
-                {
-                    dependencies = new string[] { };
-                }
-                else
-                {
-                    throw new InvalidOperationException(string.Format("Don't know how to make {0}", currentTarget));
-                }
+                string[] dependencies = GetDependencies(
+                    target, makefilePath, variables, targets);
 
                 artifacts.Add(new BuildArtifact()
                 {
                     Type = fileType,
-                    Name = currentTarget,
+                    Name = target,
                     Dependencies = dependencies
                 });
 
@@ -105,6 +92,24 @@ namespace make2vc
             }
 
             return artifacts;
+        }
+
+        private static string[] GetDependencies(string target, string makefilePath, Variables variables, Dictionary<string, Rule> targets)
+        {
+            Rule rule;
+            if (targets.TryGetValue(target, out rule))
+            {
+                return variables.Expand(rule.Prerequisites)
+                    .Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            }
+            else if (File.Exists(MakePath(target, makefilePath)))
+            {
+                return new string[] { };
+            }
+            else
+            {
+                throw new InvalidOperationException(string.Format("Don't know how to make {0}", target));
+            }
         }
 
         private static string MakePath(string target, string makefilePath)
@@ -138,7 +143,7 @@ namespace make2vc
             }
         }
 
-        private static void ParseMakefile(string makefilePath, Dictionary<string, string> variables, Dictionary<string, Rule> targets, out string defaultGoal)
+        private static void ParseMakefile(string makefilePath, Variables variables, Dictionary<string, Rule> targets, out string defaultGoal)
         {
             defaultGoal = null;
 
@@ -148,7 +153,7 @@ namespace make2vc
                 {
                     case ItemType.Rule:
                         var rule = (Rule)item;
-                        var targetNames = ExpandVariables(rule.Targets, variables);
+                        var targetNames = variables.Expand(rule.Targets);
                         foreach (var targetName in targetNames
                             .Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries))
                         {
@@ -164,7 +169,7 @@ namespace make2vc
 
                     case ItemType.VariableDefinition:
                         var definition = (VariableDefinition)item;
-                        variables[ExpandVariables(definition.Name, variables)] = definition.Value;
+                        variables.Set(variables.Expand(definition.Name), definition.Value);
                         //Debug.WriteLine("variable definition");
                         break;
 
@@ -177,65 +182,6 @@ namespace make2vc
             }
 
             Debug.WriteLine(string.Format("{0} targets", targets.Count));
-        }
-
-        private static string ExpandVariables(string text, Dictionary<string, string> variables)
-        {
-            var sb = new StringBuilder();
-
-            for (int i = 0; i < text.Length; i++)
-            {
-                if (text[i] == '$' && i + 1 < text.Length)
-                {
-                    switch (text[i + 1])
-                    {
-                        case '$':
-                            sb.Append('$');
-                            i++;
-                            break;
-
-                        case '(':
-                            {
-                                var name = Scan(text, i + 2, ')');
-                                i = i + 1 + name.Length;
-                                sb.Append(ValueOrEmptyString(name, variables));
-                            }
-                            break;
-
-                        case '{':
-                            {
-                                var name = Scan(text, i + 2, '}');
-                                i = i + 1 + name.Length;
-                                sb.Append(ValueOrEmptyString(name, variables));
-                            }
-                            break;
-
-                        default:
-                            sb.Append(ValueOrEmptyString(text.Substring(i + 1, 1), variables));
-                            i++;
-                            break;
-                    }
-                }
-                else
-                {
-                    sb.Append(text[i]);
-                }
-            }
-
-            return sb.ToString();
-        }
-
-        private static string ValueOrEmptyString(string name, Dictionary<string, string> variables)
-        {
-            var value = string.Empty;
-            variables.TryGetValue(name, out value);
-            return value;
-        }
-
-        private static string Scan(string text, int startIndex, char terminator)
-        {
-            var endIndex = Math.Max(startIndex, text.IndexOf(terminator, startIndex));
-            return text.Substring(startIndex, endIndex - startIndex);
         }
     }
 }
