@@ -7,8 +7,7 @@ Some research:
 - (A guide to .vcxproj and .props file structure)[https://blogs.msdn.microsoft.com/visualstudio/2010/05/14/a-guide-to-vcxproj-and-props-file-structure/]
 - (hand-constructing visual studio 2012 vcxproj)[http://blog.bfitz.us/?p=922]
 
-Technical choices
------------------
+## Technical choices
 We're going to parse text, do some transformations, and write xml. Command line. On Windows and possibly other platforms. C# should do the trick, on mono if need be.
 
 Parser?
@@ -16,11 +15,16 @@ Parser?
 - Gold parsing system. Used with an earlier project.
 - Hand written. The format is super simple so this should be at least a good starting point.
 
-Structure
----------
+## Structure
 The big picture looks like this:
 - a simple makefile parser, which reads a makefile and outputs makefile tokens.
 - a simple vcxproj formatter, which is fed with source files and compiler/linker options to produce a vcxproj file.
 - a not so simple (?) makefile processor, which turns the makefile tokens into vcxproj's, one for each library and executable.
 
 Maybe the vcxproj formatter could be template based?
+
+## Identifying makefile targets for binaries
+We need to identify makefile targets which generate executables and libraries (static and dynamic). How?
+
+In the simplest case, an executable depends on a single source file. How do we know it's actually building an executable and not only an object file? By the use (actually absence) of the -c compiler flag.
+The name of the executable can be assumed to be the name of the target.
