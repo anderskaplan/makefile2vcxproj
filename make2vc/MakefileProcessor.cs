@@ -1,25 +1,52 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace make2vc
 {
-    public enum BuildArtifactType
+    public enum BuildFileType
     {
         Unknown,
         Executable,
         StaticLibrary,
-        DynamicLibrary
+        DynamicLibrary,
+        Intermediate,
+        Source,
+        Other
     }
 
-    public struct BuildArtifact
+    public struct BuildArtifact : IEquatable<BuildArtifact>
     {
-        public BuildArtifactType Type { get; set; }
+        public BuildFileType Type { get; set; }
         public string Name { get; set; }
-        public string[] Inputs { get; set; }
+        public string[] Dependencies { get; set; }
+
+        public override int GetHashCode()
+        {
+            return Name.GetHashCode();
+        }
+
+        public override string ToString()
+        {
+            return string.Format("{0} {1} [{2} dependencies]", Type, Name, Dependencies.Length);
+        }
+
+        public override bool Equals(object obj)
+        {
+            return obj is BuildArtifact &&
+                Equals((BuildArtifact)obj);
+        }
+
+        public bool Equals(BuildArtifact other)
+        {
+            return Type == other.Type &&
+                Name.Equals(other.Name) &&
+                Dependencies.OrderBy(x => x).SequenceEqual(other.Dependencies.OrderBy(x => x));
+        }
     }
 
     public class MakefileProcessor
@@ -32,20 +59,83 @@ namespace make2vc
             ParseMakefile(makefilePath, variables, targets, out defaultGoal);
 
             var artifacts = new List<BuildArtifact>();
+            var builtTargets = new HashSet<string>();
+            var remainingTargets = new Stack<string>(new string[] { defaultGoal });
+            while (remainingTargets.Count > 0)
+            {
+                var currentTarget = remainingTargets.Pop();
+                if (!builtTargets.Add(currentTarget))
+                {
+                    continue;
+                }
 
-            // push the default goal on the stack of targets that need to be built
-            // while targets-to-build is nonempty:
-            //   pop top
-            //   if already marked as built: skip
-            //   mark as built
-            //   what kind of target (i.e. file) is top? (executable, lib, obj, source, other) -- identify by .exe .lib .dll etc
-            //   if "non-interesting" target: skip
-            //   add all dependencies to targets-to-build
-            //   add a build artifact node
+                var fileType = IdentifyFileType(currentTarget);
+                if (!FileTypeIsBuildArtifact(fileType))
+                {
+                    continue;
+                }
 
+                Rule rule;
+                string[] dependencies;
+                if (targets.TryGetValue(currentTarget, out rule))
+                {
+                    dependencies = ExpandVariables(rule.Prerequisites, variables)
+                        .Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                }
+                else if (File.Exists(MakePath(currentTarget, makefilePath)))
+                {
+                    dependencies = new string[] { };
+                }
+                else
+                {
+                    throw new InvalidOperationException(string.Format("Don't know how to make {0}", currentTarget));
+                }
 
+                artifacts.Add(new BuildArtifact()
+                {
+                    Type = fileType,
+                    Name = currentTarget,
+                    Dependencies = dependencies
+                });
+
+                foreach (var dependency in dependencies)
+                {
+                    remainingTargets.Push(dependency);
+                }
+            }
 
             return artifacts;
+        }
+
+        private static string MakePath(string target, string makefilePath)
+        {
+            return Path.Combine(Path.GetDirectoryName(makefilePath), target);
+        }
+
+        private static bool FileTypeIsBuildArtifact(BuildFileType fileType)
+        {
+            return fileType != BuildFileType.Unknown &&
+                fileType != BuildFileType.Other;
+        }
+
+        private static BuildFileType IdentifyFileType(string currentTarget)
+        {
+            var fileExtension = Path.GetExtension(currentTarget).ToLowerInvariant();
+            switch (fileExtension)
+            {
+                case "":
+                    return BuildFileType.Executable;
+
+                case ".c":
+                case ".cc":
+                case ".cpp":
+                case ".h":
+                case ".hpp":
+                    return BuildFileType.Source;
+
+                default:
+                    return BuildFileType.Unknown;
+            }
         }
 
         private static void ParseMakefile(string makefilePath, Dictionary<string, string> variables, Dictionary<string, Rule> targets, out string defaultGoal)

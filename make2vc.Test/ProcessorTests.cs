@@ -22,11 +22,23 @@ namespace make2vc.Test
         {
             var artifacts = MakefileProcessor.Process("../../../testdata/simplest.mk")
                 .ToArray();
-            Assert.That(artifacts.Length, Is.EqualTo(1));
-            var artifact = artifacts[1];
-            Assert.That(artifact.Type, Is.EqualTo(BuildArtifactType.Executable));
-            Assert.That(artifact.Name, Is.EqualTo("all"));
-            Assert.That(artifact.Inputs, Is.EquivalentTo("myprog.c"));
+
+            Assert.That(artifacts, Is.EquivalentTo(new BuildArtifact[]
+            {
+                new BuildArtifact()
+                {
+                    Type = BuildFileType.Executable,
+                    Name = "all",
+                    Dependencies = new string[] { "myprog.c" }
+                },
+                new BuildArtifact()
+                {
+                    Type = BuildFileType.Source,
+                    Name = "myprog.c",
+                    Dependencies = new string[] { }
+                }
+            }));
+        }
         }
     }
 }
