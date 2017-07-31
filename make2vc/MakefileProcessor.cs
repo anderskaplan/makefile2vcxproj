@@ -58,6 +58,30 @@ namespace make2vc
             string defaultGoal;
             ParseMakefile(makefilePath, variables, targets, out defaultGoal);
 
+            var artifacts = IdentifyArtifacts(makefilePath, variables, targets, defaultGoal);
+
+            return RemoveEmptyArtifacts(artifacts);
+        }
+
+        private static IEnumerable<BuildArtifact> RemoveEmptyArtifacts(IEnumerable<BuildArtifact> artifacts)
+        {
+            var lut = artifacts.ToDictionary(x => x.Name); // because we only want to enumerate once
+
+            // empty artifacts are "executables" that depend only on other executables
+            foreach (var artifact in lut.Values)
+            {
+                if (artifact.Type == BuildFileType.Executable &&
+                    artifact.Dependencies.All(x => lut[x].Type == BuildFileType.Executable))
+                {
+                    continue;
+                }
+
+                yield return artifact;
+            }
+        }
+
+        private static IEnumerable<BuildArtifact> IdentifyArtifacts(string makefilePath, Variables variables, Dictionary<string, Rule> targets, string defaultGoal)
+        {
             var artifacts = new List<BuildArtifact>();
             var builtTargets = new HashSet<string>();
             var remainingTargets = new Stack<string>(new string[] { defaultGoal });

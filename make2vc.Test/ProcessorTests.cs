@@ -39,6 +39,28 @@ namespace make2vc.Test
                 }
             }));
         }
+
+        [Test]
+        public void ProcessVars()
+        {
+            var artifacts = MakefileProcessor.Process("../../../testdata/vars.mk")
+                .ToArray();
+
+            Assert.That(artifacts, Is.EquivalentTo(new BuildArtifact[]
+            {
+                new BuildArtifact()
+                {
+                    Type = BuildFileType.Executable,
+                    Name = "myprog",
+                    Dependencies = new string[] { "myprog.c" }
+                },
+                new BuildArtifact()
+                {
+                    Type = BuildFileType.Source,
+                    Name = "myprog.c",
+                    Dependencies = new string[] { }
+                }
+            }));
         }
     }
 }
